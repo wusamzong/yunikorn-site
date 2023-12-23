@@ -15,6 +15,7 @@ pipeline {
                 container('docker-git') {
                     script {
                         if (env.BRANCH_NAME == 'jenkins') {
+                            sh "ls"
                             // 设置 Node 版本
                             sh "NODE_VERSION=\$(cat .nvmrc) && NODE_VERSION=\${NODE_VERSION:-${env.NODE_VERSION}}"
                             // 记录提交信息
