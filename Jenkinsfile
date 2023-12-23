@@ -1,29 +1,30 @@
 pipeline {
-    agent {
-        label 'linux'
-    }
-
-    triggers {
-        pollSCM('H/5 * * * *')
-    }
-
-    environment {
-        NODE_VERSION = '18.17'
-    }
+    agent none // 不在默认环境中运行
 
     stages {
         stage('Pre-commit Checks') {
+            agent {
+                // 定义 Kubernetes Pod 模板
+                kubernetes {
+                    // 定义使用的容器
+                    containerTemplate(name: 'docker-git', image: 'docker:19.03-git', ttyEnabled: true, command: 'cat')
+                }
+            }
             steps {
-                script {
-                    if (env.BRANCH_NAME == 'jenkins') {
-                        echo 'Running on master branch'
-
-                        sh './check_license.sh'
-
-                        sh """
-                          NODE_VERSION=\$(cat .nvmrc) && NODE_VERSION=\${NODE_VERSION:-${env.NODE_VERSION}}
-                          docker build -t yunikorn/yunikorn-website:2.0.0 . --build-arg NODE_VERSION=\${NODE_VERSION}
-                        """
+                // 使用定义的容器
+                container('docker-git') {
+                    script {
+                        if (env.BRANCH_NAME == 'jenkins') {
+                            // 设置 Node 版本
+                            sh "NODE_VERSION=\$(cat .nvmrc) && NODE_VERSION=\${NODE_VERSION:-${env.NODE_VERSION}}"
+                            // 记录提交信息
+                            sh "git log master --pretty=format:'Auto refresh: %s' -n 1 > ../asf-site-commit.txt"
+                            // 构建并运行 Docker 容器
+                            sh "docker build -t yunikorn/yunikorn-website:2.0.0 . --build-arg NODE_VERSION=\${NODE_VERSION}"
+                            sh "docker run --name yunikorn-site -d -p 3000:3000 yunikorn/yunikorn-website:2.0.0"
+                            // 等待网站响应
+                            sh "bash -c 'while true; do curl -Is http://localhost:3000 | head -n 1 | grep \"OK\"; [ \$? -eq 0 ] && break; sleep 3; done'"
+                        }
                     }
                 }
             }
@@ -34,7 +35,7 @@ pipeline {
         always {
             echo 'Pre-commit Checks completed'
         }
-        failure{
+        failure {
             echo 'Build failed'
         }
     }
