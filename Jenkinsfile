@@ -4,20 +4,36 @@ pipeline {
     stages {
         stage('Pre-commit Checks') {
             agent {
-                // 定义 Kubernetes Pod 模板
                 kubernetes {
-                    // 定义使用的容器
-                    containerTemplate(name: 'docker-git', image: 'docker:19.03-git', ttyEnabled: true, command: 'cat')
+                    // 定义 Docker 守护进程容器
+                    containerTemplate(
+                        name: 'dind',
+                        image: 'docker:dind',
+                        privileged: true, // 重要：运行 DinD 时需要特权模式
+                        command: 'dockerd-entrypoint.sh',
+                        args: '--host=unix:///var/run/docker.sock --host=tcp://0.0.0.0:2376',
+                        ttyEnabled: true
+                    )
+                    // 定义 Docker 客户端和 Git 容器
+                    containerTemplate(
+                        name: 'docker-git',
+                        image: 'docker:19.03-git',
+                        command: 'cat',
+                        ttyEnabled: true
+                    )
                 }
             }
             steps {
-                // 使用定义的容器
+                // 使用 Docker 客户端和 Git 容器
                 container('docker-git') {
                     script {
                         if (env.BRANCH_NAME == 'jenkins') {
-                            sh "ls"
+                            // 设置环境变量，指向 Docker 守护进程
+                            sh "export DOCKER_HOST=tcp://localhost:2376"
                             // 设置 Node 版本
                             sh "NODE_VERSION=\$(cat .nvmrc) && NODE_VERSION=\${NODE_VERSION:-${env.NODE_VERSION}}"
+                            // 记录提交信息
+                            // sh "git log master --pretty=format:'Auto refresh: %s' -n 1 > ../asf-site-commit.txt"
                             // 构建并运行 Docker 容器
                             sh "docker build -t yunikorn/yunikorn-website:2.0.0 . --build-arg NODE_VERSION=\${NODE_VERSION}"
                             sh "docker run --name yunikorn-site -d -p 3000:3000 yunikorn/yunikorn-website:2.0.0"
