@@ -18,8 +18,6 @@ pipeline {
                             sh "ls"
                             // 设置 Node 版本
                             sh "NODE_VERSION=\$(cat .nvmrc) && NODE_VERSION=\${NODE_VERSION:-${env.NODE_VERSION}}"
-                            // 记录提交信息
-                            sh "git log jenkins --pretty=format:'Auto refresh: %s' -n 1 > ../asf-site-commit.txt"
                             // 构建并运行 Docker 容器
                             sh "docker build -t yunikorn/yunikorn-website:2.0.0 . --build-arg NODE_VERSION=\${NODE_VERSION}"
                             sh "docker run --name yunikorn-site -d -p 3000:3000 yunikorn/yunikorn-website:2.0.0"
