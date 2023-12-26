@@ -5,75 +5,13 @@ pipeline {
         stage('Pre-commit Checks') {
             agent {
                 kubernetes {
-                yaml """
-apiVersion: v1
-kind: Pod
-metadata:
-  annotations:
-    buildUrl: "http://jenkins.devops-tools.svc.cluster.local:8080/job/YuniKorn%20Site/job/jenkins/7/"
-    runUrl: "job/YuniKorn%20Site/job/jenkins/7/"
-  labels:
-    jenkins/jenkins-jenkins-agent: "true"
-    jenkins/label-digest: "270a7ec06b2ae63d7cad75f5aa0514cb812c57ca"
-    jenkins/label: "YuniKorn_Site_jenkins_7-9t9wh"
-  name: "yunikorn-site-jenkins-7-9t9wh-cfscl-6vsd5"
-  namespace: "devops-tools"
-spec:
-  containers:
-  - name: dind
-    image: docker:dind
-    securityContext:
-      privileged: true
-    command:
-    - dockerd-entrypoint.sh
-    args:
-    - --host=unix:///var/run/docker.sock
-    - --host=tcp://0.0.0.0:2376
-    tty: true
-    volumeMounts:
-    - mountPath: "/home/jenkins/agent"
-      name: "workspace-volume"
-      readOnly: false
-  - name: docker-git
-    image: docker:19.03-git
-    command:
-    - cat
-    tty: true
-    volumeMounts:
-    - mountPath: "/home/jenkins/agent"
-      name: "workspace-volume"
-      readOnly: false
-  - env:
-    - name: "JENKINS_SECRET"
-      value: "********"
-    - name: "JENKINS_TUNNEL"
-      value: "jenkins-agent.devops-tools.svc.cluster.local:50000"
-    - name: "JENKINS_AGENT_NAME"
-      value: "yunikorn-site-jenkins-7-9t9wh-cfscl-6vsd5"
-    - name: "JENKINS_NAME"
-      value: "yunikorn-site-jenkins-7-9t9wh-cfscl-6vsd5"
-    - name: "JENKINS_AGENT_WORKDIR"
-      value: "/home/jenkins/agent"
-    - name: "JENKINS_URL"
-      value: "http://jenkins.devops-tools.svc.cluster.local:8080/"
-    image: "jenkins/inbound-agent:3142.vcfca_0cd92128-1"
-    name: "jnlp"
-    resources:
-      requests:
-        memory: "256Mi"
-        cpu: "100m"
-    volumeMounts:
-    - mountPath: "/home/jenkins/agent"
-      name: "workspace-volume"
-      readOnly: false
-  nodeSelector:
-    kubernetes.io/os: "linux"
-  restartPolicy: "Never"
-  volumes:
-  - emptyDir:
-      medium: ""
-    name: "workspace-volume"
-"""
+                    // 定义 Docker 客户端和 Git 容器
+                    containerTemplate(
+                        name: 'docker-git',
+                        image: 'docker:19.03-git',
+                        command: 'cat',
+                        ttyEnabled: true
+                    )
                 }
             }
             steps {
